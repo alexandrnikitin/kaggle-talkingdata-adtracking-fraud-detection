@@ -5,22 +5,18 @@ Modified by olivier : https://www.kaggle.com/ogrellier
 Addition : Multi processing with concurrent updates of weights
 """
 
+import functools
+import gc
+import os
+import psutil
+from collections import defaultdict
 from datetime import datetime
 from math import exp, log, sqrt
+from multiprocessing import Process, Value, Array, Lock, Pool, cpu_count
+
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import KFold, train_test_split
 from sklearn.metrics import log_loss, roc_auc_score
-from numba import jit
-from multiprocessing import Process, Value, Array, Lock, Pool, cpu_count
-import gc
-import sys, os, psutil
-from sklearn.metrics import mean_squared_error
-from collections import defaultdict
-import functools
-import re
-import unidecode
-from itertools import combinations
 
 np.random.seed(4689571)
 
@@ -328,10 +324,10 @@ def add_time_related_info(df):
     gc.collect()
 
 def main():
-    train_file, trn_nb_samples, chunksize = "../input/train.csv", 184903890, 20000000
-    # train_file, trn_nb_samples, chunksize = "../input/train_sample.csv", 100000, 50000
+    #train_file, trn_nb_samples, chunksize = "../input/train.csv", 184903890, 20000000
+    train_file, trn_nb_samples, chunksize = "../../data/raw/train_sample.csv", 100000, 50000
     
-    test_file = "../input/test.csv"
+    test_file = "../../data/raw/test.csv"
     
     nb_epochs = 1
     
