@@ -54,3 +54,23 @@ Project Organization
 --------
 
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+
+
+```
+# train
+vw data/processed/train_sample.vw \
+    -f models/vw/baseline.model \
+    --link=logistic \
+    --loss_function=logistic \
+    --hash all
+
+# test
+vw data/processed/train_sample.vw \
+    -i models/vw/baseline.model \
+    --testonly \
+    -p models/vw/predictions.txt \
+    --link=logistic \
+    --loss_function=logistic \
+    --hash all
+
+```
