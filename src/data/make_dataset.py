@@ -2,18 +2,44 @@
 import os
 import click
 import logging
+import csv
 from dotenv import find_dotenv, load_dotenv
 
 
 @click.command()
 @click.argument('input_filepath', type=click.Path(exists=True))
-@click.argument('output_filepath', type=click.Path())
+@click.argument('output_filepath', type=click.Path(exists=False))
 def main(input_filepath, output_filepath):
     """ Runs data processing scripts to turn raw data from (../raw) into
         cleaned data ready to be analyzed (saved in ../processed).
     """
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
+
+    convert(input_filepath, output_filepath)
+
+    logger.info('finished')
+
+
+def construct_line(row):
+    label = str(2 * int(row['is_attributed']) - 1)
+    str_vw = f"{label}"
+    #importance = '100' if label == 1 else ''
+    #str_vw = str_vw.join(importance)
+    str_vw += f" |i {row['ip']}"
+    str_vw += f" |a {row['app']}"
+    str_vw += f" |d {row['device']}"
+    str_vw += f" |o {row['os']}"
+    str_vw += f" |c {row['channel']}"
+    str_vw += '\n'
+    return str_vw
+
+
+def convert(input_file, output_file):
+    with open(input_file, encoding='utf-8') as input_file:
+        with open(output_file, mode='x', encoding='utf-8') as output_file:
+            for row in csv.DictReader(input_file):
+                output_file.write(construct_line(row))
 
 
 if __name__ == '__main__':
