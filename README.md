@@ -60,15 +60,19 @@ Project Organization
 # train
 vw data/processed/train_sample.vw \
     -f models/vw/baseline.model \
+    -b 28 \
     --link=logistic \
     --loss_function=logistic \
-    --hash all
+    --hash all \
+    --passes 10 \
+    --cache --kill_cache \
+    -P 1e6
 
 # test
 vw data/processed/train_sample.vw \
     -i models/vw/baseline.model \
     --testonly \
-    -p models/vw/predictions.txt \
+    -p models/vw/predictions/train.txt \
     --link=logistic \
     --loss_function=logistic \
     --hash all

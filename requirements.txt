@@ -11,3 +11,4 @@ psutil
 pandas
 numpy
 pycm
+kaggle
