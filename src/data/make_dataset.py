@@ -22,9 +22,9 @@ def main(input_filepath, output_filepath):
 
 
 def construct_line(row):
-    label = str(2 * int(row['is_attributed']) - 1)
+    label = 2 * int(row['is_attributed']) - 1
     str_vw = f"{label}"
-    importance = '$importance$' if label == 1 else ''
+    importance = '${i}' if label == 1 else ''
     str_vw += f" {importance} "
     str_vw += f" |i {row['ip']}"
     str_vw += f" |a {row['app']}"

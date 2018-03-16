@@ -12,3 +12,6 @@ pandas
 numpy
 pycm
 kaggle
+hyperopt
+seaborn
+networkx==1.11
