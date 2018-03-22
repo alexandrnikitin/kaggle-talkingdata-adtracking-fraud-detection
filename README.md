@@ -59,12 +59,13 @@ Project Organization
 ```
 kaggle competitions download -c talkingdata-adtracking-fraud-detection -p ./data/raw/
 unzip '*.zip'
+mv data/raw/mnt/ssd/kaggle-talkingdata2/competition_files/* data/raw/
 
 split -l 1000000 -d train.vw train.vw.
 
-sed -e "s/\${i}/500/" train.vw > train.vw.500
-head -n 10000000 train.vw.500 > train.vw.00
-tail -n +10000001 train.vw.500 | head -n 400000 > test.vw.00
+head -n 10000000 train.vw > train.vw.00
+tail -n +10000001 train.vw | head -n 400000 > validate.vw.00
+tail -n +10400001 train.vw | head -n 400000 > test.vw.00
 
 # train
 vw data/processed/train.vw.00 \
@@ -79,10 +80,10 @@ vw data/processed/train.vw.00 \
     -q ::
 
 # test
-vw data/processed/train.vw.01 \
-    -i models/vw/baseline.model.00 \
+vw data/processed/test.medium.vw.00 \
+    -i models/vw/model-best-classweight \
     --testonly \
-    -p models/vw/predictions/train.vw.01.txt \
+    -p models/vw/predictions/test.medium.00 \
     --loss_function=logistic \
     --hash all
 
@@ -91,15 +92,18 @@ awk '{ if ($1 == "-1") print "0"; else print $1;}' /cba/alex/test.vw.00 > /cba/a
 ./libs/perf.linux/perf -all -files /cba/alex/test.labels.00 models/vw/predictions/test.vw.00.txt
 
 sed -i.bak -e "s/ 500 //" /cba/alex/test.vw.00
- 
-./libs/vw-hyperopt/vw-hyperopt.py --train ./train_set.vw \
-	--holdout ./holdout_set.vw \
-	--max_evals 200 \
-	--outer_loss_function roc-auc \
-	--vw_space '--algorithms=ftrl,sgd --l2=1e-8..1e-1~LO --l1=1e-8..1e-1~LO -l=0.01..10~L --power_t=0.01..1 --ftrl_alpha=5e-5..8e-1~L --ftrl_beta=0.01..1 --passes=1..10~I --loss_function=logistic -q=::~O'  \
-	--plot 
+
+docker run -p 27017:27017 --name some-mongo -d mongo
+python src/models/hyperopt_vw.py \
+    --train_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/processed/train.medium.vw.00 \
+    --test_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/processed/test.medium.vw.00 \
+    --vw_args="--bit_precision 25 --ftrl --link logistic --hash all -q :: --holdout_off" \
+    --outer_loss_function='roc-auc' \
+    --mongo=mongo://localhost:27017/exp6/jobs \
+    --max_evals=1000
+    
+run-hyperopt-mongo-workers.sh 15 localhost:27017/exp5
 	
-./vw-hypersearch -L -t data/processed/test.vw.00 1e-10  5e-4 vw data/processed/train.vw.00     -f models/vw/baseline.model  --l1 %   -b 29   --ftrl  --link=logistic     --loss_function=logistic     --hash all     --passes 5     --cache --kill_cache     -q :: --threads
 
 awk '{print $2","$1}' models/vw/predictions/test.txt > models/vw/predictions/submission-1.csv
 
