@@ -60,6 +60,10 @@ Project Organization
 
 
 ```bash
+
+# analysis
+docker run -d -p 8888:8888 -v ~/kaggle-talkingdata-adtracking-fraud-detection/:/home/jovyan/work/kaggle-talkingdata-adtracking-fraud-detection -e NB_UID=1000 -e GRANT_SUDO=yes --user root jupyter/datascience-notebook start-notebook.sh --NotebookApp.token=''
+
 kaggle competitions download -c talkingdata-adtracking-fraud-detection -p ./data/raw/
 unzip '*.zip'
 mv data/raw/mnt/ssd/kaggle-talkingdata2/competition_files/* data/raw/
