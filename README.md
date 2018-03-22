@@ -56,7 +56,10 @@ Project Organization
 <p><small>Project based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
 
 
-```
+
+
+
+```bash
 kaggle competitions download -c talkingdata-adtracking-fraud-detection -p ./data/raw/
 unzip '*.zip'
 mv data/raw/mnt/ssd/kaggle-talkingdata2/competition_files/* data/raw/
@@ -68,8 +71,9 @@ tail -n +10000001 train.vw | head -n 400000 > validate.vw.00
 tail -n +10400001 train.vw | head -n 400000 > test.vw.00
 
 # train
-vw data/processed/train.vw.00 \
-    -f models/vw/baseline.model \
+vw data/processed/train.vw \
+    -f models/model \
+    --invert_hash models/model.inverted \ 
     -b 29 \
     --link=logistic \
     --loss_function=logistic \
@@ -80,20 +84,24 @@ vw data/processed/train.vw.00 \
     -q ::
 
 # test
-vw data/processed/test.medium.vw.00 \
-    -i models/vw/model-best-classweight \
+vw data/processed/test.vw \
+    -i models/model \
     --testonly \
-    -p models/vw/predictions/test.medium.00 \
+    -p models/predictions/test \
     --loss_function=logistic \
     --hash all
 
+# audit
+vw --data data/processed/train.vw \
+    -i models/model \
+    --audit_regressor models/model.audit
     
-awk '{ if ($1 == "-1") print "0"; else print $1;}' /cba/alex/test.vw.00 > /cba/alex/test.labels.00
-./libs/perf.linux/perf -all -files /cba/alex/test.labels.00 models/vw/predictions/test.vw.00.txt
+awk '{ if ($1 == "-1") print "0"; else print $1;}' data/processed/test.vw > data/processed/test.labels
+./libs/perf.linux/perf -all -files data/processed/test.labels models/predictions/test
 
-sed -i.bak -e "s/ 500 //" /cba/alex/test.vw.00
+# hyperparameter optimization
+docker run -p 27017:27017 --name hyperopt-mongo -d mongo
 
-docker run -p 27017:27017 --name some-mongo -d mongo
 python src/models/hyperopt_vw.py \
     --train_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/processed/train.medium.vw.00 \
     --test_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/processed/test.medium.vw.00 \
@@ -101,11 +109,13 @@ python src/models/hyperopt_vw.py \
     --outer_loss_function='roc-auc' \
     --mongo=mongo://localhost:27017/exp6/jobs \
     --max_evals=1000
-    
+
 run-hyperopt-mongo-workers.sh 15 localhost:27017/exp5
-	
 
-awk '{print $2","$1}' models/vw/predictions/test.txt > models/vw/predictions/submission-1.csv
-
+# submission
+echo "click_id,is_attributed" > models/predictions/submission.csv
+awk '{print $2","$1}' models/predictions/test >> models/predictions/submission.csv
+zip -r models/predictions/submission.zip models/predictions/submission.csv
+kaggle competitions submit -c talkingdata-adtracking-fraud-detection -f models/predictions/submission.csv -m "message"
 
 ```
