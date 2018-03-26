@@ -5,6 +5,11 @@ import logging
 import csv
 from dotenv import find_dotenv, load_dotenv
 
+if __name__ == '__main__':
+    from csv2vw import construct_line
+else:
+    from .csv2vw import construct_line
+
 
 @click.command()
 @click.argument('input_filepath', type=click.Path(exists=True))
@@ -19,18 +24,6 @@ def main(input_filepath, output_filepath):
     convert(input_filepath, output_filepath)
 
     logger.info('finished')
-
-
-def construct_line(row):
-    label = 2 * int(row['is_attributed']) - 1
-    str_vw = f"{label}"
-    str_vw += f" |i {row['ip']}"
-    str_vw += f" |a {row['app']}"
-    str_vw += f" |d {row['device']}"
-    str_vw += f" |o {row['os']}"
-    str_vw += f" |c {row['channel']}"
-    str_vw += '\n'
-    return str_vw
 
 
 def convert(input_file, output_file):
