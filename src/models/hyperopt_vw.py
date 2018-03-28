@@ -1,86 +1,72 @@
 # -*- coding: utf-8 -*-
 
 """Console script for hyperopt_vw."""
-import json
 import logging
 import sys
+from math import log
+
 import click
-import numpy as np
-from hyperopt import hp, Trials, fmin, tpe, rand
+from hyperopt import hp, Trials
 from hyperopt.mongoexp import MongoTrials
-
-from matplotlib import pyplot as plt
-try:
-    import seaborn as sns
-except ImportError:
-    print ("Warning: seaborn is not installed. "
-           "Without seaborn, standard matplotlib plots will not look very charming. "
-           "It's recommended to install it via pip install seaborn")
-
-from hyperopt_vw import Objective
-
-
-def ftrl(name, **kwargs):
-    # loss_funcs = ['squared', 'hinge', 'logistic', 'quantile', 'poisson']
-    loss_funcs = ['squared', 'hinge', 'logistic', 'quantile']
-    space = {
-        # '--ftrl_alpha': hp.loguniform(_name_func('ftrl_alpha'), log(5e-5), log(8e-1)),
-        # '--ftrl_beta': hp.uniform(_name_func('ftrl_beta'), log(0.01), log(1.)),
-        '--passes': hp.quniform(name + 'passes', 1, 10, 1),
-        '--classweight 1:': hp.loguniform(name + '_classweight_pos', log(1), log(1000)),
-        '--classweight -1:': hp.loguniform(name + '_classweight_neg', log(0.001), log(1)),
-        '--loss_function': hp.choice(name + 'loss_function', loss_funcs),
-    }
-    return space
-
-
-def get_space():
-    return ftrl("ftrl")
+from hyperopt_vw import Objective, search
 
 
 @click.command()
 @click.option('--train_data', type=click.Path())
+@click.option('--validation_data', type=click.Path())
 @click.option('--test_data', type=click.Path())
 @click.option('--trials_output', type=click.Path(), default='./trials.json')
 @click.option('--vw_args', type=click.STRING, default='')
-@click.option('--searcher', type=click.Choice(['tpe', 'rand']), default='tpe')
 @click.option('--max_evals', type=click.INT, default=100)
 @click.option('--outer_loss_function',
               type=click.Choice(['logistic', 'roc-auc', 'pr-auc', 'hinge', 'squared']),
               default='logistic')
 @click.option('--mongo', type=click.STRING, default=None)
 @click.option('--timeout', type=click.INT, default=3600)
-def main(train_data, test_data, trials_output, vw_args, searcher, max_evals, outer_loss_function, mongo, timeout, plot):
-    logger = logging.getLogger()
-    algo = tpe.suggest
-    if searcher == 'rand':
-        algo = rand.suggest
+def main(train_data, validation_data, test_data, trials_output, vw_args, max_evals, outer_loss_function, mongo,
+         timeout):
+    space = {
+        # '--ftrl_alpha': hp.loguniform(_name_func('ftrl_alpha'), log(5e-5), log(8e-1)),
+        # '--ftrl_beta': hp.uniform(_name_func('ftrl_beta'), log(0.01), log(1.)),
+        '--passes': hp.quniform('passes', 1, 5, 1),
+        '--learning_rate': hp.loguniform('learning_rate', log(0.01), log(10)),
+        '--classweight 1:': hp.loguniform('classweight_pos', log(1), log(1000)),
+        '--classweight -1:': hp.loguniform('classweight_neg', log(0.001), log(1)),
+    }
 
-    space = get_space()
-    if mongo is None:
-        trials = Trials()
-    else:
-        trials = MongoTrials(mongo)
+    trials = MongoTrials(mongo) if mongo else Trials()
 
-    objective = Objective(train_data, test_data, test_data + '.pred', train_data + '.model', vw_args, outer_loss_function, timeout)
-    best = fmin(
-        objective,
-        space=space,
-        algo=algo,
-        max_evals=max_evals,
-        trials=trials)
+    objective = Objective(train_data=train_data, validation_data=validation_data, test_data=test_data,
+                          vw_args=vw_args, outer_loss_function=outer_loss_function, timeout=timeout)
 
-    logger.debug("the best hyperopt parameters: %s" % str(best))
-
-    json.dump(trials.results, open(trials_output, 'w'))
-    logger.info('All the trials results are saved at %s' % trials_output)
-
-    best_configuration = trials.results[np.argmin(trials.losses())]['train_command']
-    best_loss = trials.results[np.argmin(trials.losses())]['loss']
-    logger.info("\n\nA full training command with the best hyperparameters: \n%s\n\n" % best_configuration)
-    logger.info("\n\nThe best holdout loss value: \n%s\n\n" % best_loss)
+    search(space, objective, trials=trials, trials_output=trials_output, max_evals=max_evals)
 
     return 0
+
+
+def vw(name, **kwargs):
+    # optimizations = [
+    #     ftrl(name + '.ftrl'),
+    # ]
+    # loss_funcs = ['squared', 'hinge', 'logistic', 'quantile', 'poisson']
+    loss_funcs = ['squared', 'hinge', 'logistic', 'quantile']
+    space = {
+        '--bit_precision': hp.quniform(name + 'bit_precision', 18, 29, 1),
+        '--learning_rate': hp.loguniform(name + 'learning_rate', log(0.01), log(10)),
+        '--loss_function': hp.choice(name + 'loss_function', loss_funcs),
+        '--hash': hp.choice(name + 'hash', ['strings', 'all']), 'passes': hp.quniform(name + 'passes', 1, 1, 10),
+        '--leave_duplicate_interactions': hp.choice(name + 'leave_duplicate_interactions', [True, False]),
+        '--classweight 1:': hp.loguniform(name + '_classweight_pos', log(1), log(1000)),
+        '--classweight -1:': hp.loguniform(name + '_classweight_neg', log(0.001), log(1)),
+        '--sgd': hp.choice(name + 'sgd', [True, False]), 'adaptive': hp.choice(name + 'adaptive', [True, False]),
+        '--normalized': hp.choice(name + 'normalized', [True, False]),
+        '--invariant': hp.choice(name + 'invariant', [True, False]),
+        '--optimizations': hp.choice(name + 'optimizations', optimizations),
+        '--l1': hp.loguniform(name + 'l1', log(1e-8), log(1e-1)),
+        '--l2': hp.loguniform(name + 'l2', log(1e-8), log(1e-1)),
+        '--decay_learning_rate': hp.uniform(name + 'decay_learning_rate', 0.1, 1),
+        '--power_t': hp.uniform(name + 'power_t', 0.01, 1)}
+    return space
 
 
 if __name__ == "__main__":

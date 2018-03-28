@@ -15,5 +15,5 @@ kaggle
 hyperopt
 seaborn
 networkx==1.11
-git+https://github.com/alexandrnikitin/hyperopt_vw.git@34e3744e7ff0099bd3377f32b82c1f752f3820a6
+git+https://github.com/alexandrnikitin/hyperopt_vw.git#egg=hyperopt_vw
 featuretools

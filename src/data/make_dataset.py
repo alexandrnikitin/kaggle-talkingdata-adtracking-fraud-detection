@@ -13,7 +13,7 @@ else:
 
 @click.command()
 @click.argument('input_filepath', type=click.Path(exists=True))
-@click.argument('output_filepath', type=click.Path(exists=False))
+@click.argument('output_filepath', type=click.Path())
 def main(input_filepath, output_filepath):
     """ Runs data processing scripts to turn raw data from (../raw) into
         cleaned data ready to be analyzed (saved in ../processed).
@@ -28,7 +28,7 @@ def main(input_filepath, output_filepath):
 
 def convert(input_file, output_file):
     with open(input_file, encoding='utf-8') as input_file:
-        with open(output_file, mode='x', encoding='utf-8') as output_file:
+        with open(output_file, mode='w', encoding='utf-8') as output_file:
             for row in csv.DictReader(input_file):
                 output_file.write(construct_line(row))
 
