@@ -15,7 +15,7 @@ from hyperopt_vw import Objective, search
 @click.option('--train_data', type=click.Path())
 @click.option('--validation_data', type=click.Path())
 @click.option('--test_data', type=click.Path())
-@click.option('--trials_output', type=click.Path(), default='./trials.json')
+@click.option('--trials_output', type=click.Path(), default=None)
 @click.option('--vw_args', type=click.STRING, default='')
 @click.option('--max_evals', type=click.INT, default=100)
 @click.option('--outer_loss_function',
