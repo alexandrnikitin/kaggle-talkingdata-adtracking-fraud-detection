@@ -5,6 +5,8 @@ def construct_line(row):
     ignore = ['is_attributed', 'attributed_time', 'click_time']
     categorical = ['ip', 'app', 'device', 'os', 'channel']
     numerical = []
+    categorical_prefixes = tuple(['MODE', 'DAY', 'YEAR', 'MONTH', 'WEEKDAY', 'HOUR', 'MINUTE', 'SECOND'])
+    numerical_prefixes = tuple(['SUM', 'STD', 'MAX', 'SKEW', 'MIN', 'MEAN', 'COUNT', 'NUM_UNIQUE', 'PERCENT_TRUE'])
 
     label = 2 * int(row['is_attributed']) - 1
 
@@ -16,14 +18,24 @@ def construct_line(row):
         if k in categorical:
             str_vw += f" |{clean(k)} {clean(v)}"
         elif k in numerical:
-            str_vw += f" |{clean(k)} {clean(k)}:{clean(v)}"
+            try:
+                f = float(v)
+                if f == 0.0:
+                    continue
+            except ValueError:
+                continue
+            str_vw += f" |{clean(k)} {clean(k)}:{f}"
         else:
-            categorical_prefixes = ['MODE', 'DAY', 'YEAR', 'MONTH', 'WEEKDAY']
-            numerical_prefixes = ['SUM', 'STD', 'MAX', 'SKEW', 'MIN', 'MEAN', 'COUNT', 'NUM_UNIQUE']
-            if k.startswith(tuple(categorical_prefixes)):
+            if k.startswith(categorical_prefixes):
                 str_vw += f" |{clean(k)} {clean(v)}"
-            elif k.startswith(tuple(numerical_prefixes)):
-                str_vw += f" |{clean(k)} {clean(v)}:{clean(v)}"
+            elif k.startswith(numerical_prefixes):
+                try:
+                    f = float(v)
+                    if f == 0.0:
+                        continue
+                except ValueError:
+                    continue
+                str_vw += f" |{clean(k)} {clean(k)}:{f}"
             else:
                 str_vw += f" |{clean(k)} {clean(v)}"
 
