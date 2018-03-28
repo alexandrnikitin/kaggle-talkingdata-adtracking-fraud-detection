@@ -10,7 +10,6 @@ def construct_line(row):
 
     str_vw = f"{label}"
     for k, v in row.items():
-        print(k)
         if k in ignore:
             continue
 
