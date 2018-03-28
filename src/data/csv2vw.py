@@ -2,7 +2,7 @@
 
 
 def construct_line(row):
-    ignore = []
+    ignore = ['is_attributed']
     categorical = ['ip', 'app', 'device', 'os', 'channel']
     numerical = []
 
@@ -18,8 +18,8 @@ def construct_line(row):
         elif k in numerical:
             str_vw += f" |{k} {k}:{v}"
         else:
-            categorical_prefixes = ['MODE','DAY','YEAR','MONTH','WEEKDAY']
-            numerical_prefixes = ['SUM','STD','MAX','SKEW','MIN','MEAN','COUNT','NUM_UNIQUE']
+            categorical_prefixes = ['MODE', 'DAY', 'YEAR', 'MONTH', 'WEEKDAY']
+            numerical_prefixes = ['SUM', 'STD', 'MAX', 'SKEW', 'MIN', 'MEAN', 'COUNT', 'NUM_UNIQUE']
             if k.startswith(tuple(categorical_prefixes)):
                 str_vw += f" |{k} {v}"
             elif k.startswith(tuple(numerical_prefixes)):
