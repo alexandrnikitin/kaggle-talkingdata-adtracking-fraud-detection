@@ -60,14 +60,41 @@ Project Organization
 
 
 ```bash
+virtualenv -p /usr/bin/python3.6 venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# perf
+mkdir libs
+cd libs/
+wget http://osmot.cs.cornell.edu/kddcup/perf/perf.src.tar.gz
+tar xzf perf.src.tar.gz
+cd perf.src/
+nano perf.c # relax max items constraint
+make
+cd ..
+ 
+
 
 # analysis
-docker run -d -p 8888:8888 -v ~/kaggle-talkingdata-adtracking-fraud-detection/:/home/jovyan/work/kaggle-talkingdata-adtracking-fraud-detection -e NB_UID=1000 -e GRANT_SUDO=yes --user root jupyter/datascience-notebook start-notebook.sh --NotebookApp.token=''
+docker run -d -p 8899:8888 -v ~/kaggle-talkingdata-adtracking-fraud-detection/:/home/jovyan/work/kaggle-talkingdata-adtracking-fraud-detection -e NB_UID=1000 -e GRANT_SUDO=yes --user root jupyter/datascience-notebook start-notebook.sh --NotebookApp.token=''
 
 kaggle competitions download -c talkingdata-adtracking-fraud-detection -p ./data/raw/
 unzip -j ./data/raw/'*.zip' -d ./data/raw/
 
-python src/data/split_hourly.py data/raw/train_sample.csv data/interim/train_sample
+python src/data/split_hourly.py data/raw/train.csv data/interim/train
+python src/data/split_hourly.py data/raw/test.csv data/interim/test
+
+export VW_TEST_FILE=data/interim/train_2017-11-08_0400
+python src/data/make_dataset.py ${VW_TEST_FILE}.csv ${VW_TEST_FILE}.vw
+
+export VW_TEST_FILE=data/interim/train_2017-11-08_0400
+head -n $[ $(wc -l ${VW_TEST_FILE}.vw|cut -d" " -f1) * 40 / 100 ] ${VW_TEST_FILE}.vw > ${VW_TEST_FILE}.validate.vw
+tail -n +$[ ($(wc -l ${VW_TEST_FILE}.vw|cut -d" " -f1) * 40 / 100) + 1 ] ${VW_TEST_FILE}.vw > ${VW_TEST_FILE}.test.vw
+
+awk '{ if ($1 == "-1") print "0"; else print $1;}' ${VW_TEST_FILE}.validate.vw > ${VW_TEST_FILE}.validate.labels
+awk '{ if ($1 == "-1") print "0"; else print $1;}' ${VW_TEST_FILE}.test.vw > ${VW_TEST_FILE}.test.labels
+
 
 split -l 1000000 -d train.vw train.vw.
 
@@ -76,46 +103,51 @@ tail -n +10000001 train.vw | head -n 400000 > validate.vw.00
 tail -n +10400001 train.vw | head -n 400000 > test.vw.00
 
 # train
-vw data/processed/train.vw \
-    -f models/model \
-    --invert_hash models/model.inverted \ 
+export VW_TRAIN_FILE=train_2017-11-07_0400
+vw --data data/interim/${VW_TRAIN_FILE}.vw \
+    -f models/${VW_TRAIN_FILE}.model \
     -b 29 \
+    --ftrl \
     --link=logistic \
     --loss_function=logistic \
     --hash all \
     --passes 10 \
     --cache --kill_cache \
-    --ftrl \
     -q ::
 
+--classweight -1:0.75 --classweight 1:50 --learning_rate 0.15 --passes 5
+
 # test
-vw data/processed/test.vw \
-    -i models/model \
+
+export VW_TRAIN_FILE=train_2017-11-07_0400
+export VW_TEST_FILE=train_2017-11-07_0400
+vw --data data/interim/${VW_TEST_FILE}.test.vw \
+    -i models/${VW_TRAIN_FILE}.model \
     --testonly \
-    -p models/predictions/test \
-    --loss_function=logistic \
-    --hash all
+    -p models/${VW_TEST_FILE}.test.predictions \
+    --loss_function=logistic
 
 # audit
 vw --data data/processed/train.vw \
     -i models/model \
     --audit_regressor models/model.audit
     
-awk '{ if ($1 == "-1") print "0"; else print $1;}' data/processed/test.vw > data/processed/test.labels
-./libs/perf.linux/perf -all -files data/processed/test.labels models/predictions/test
+./libs/perf.src/perf -all -files data/interim/${VW_TEST_FILE}.test.labels models/${VW_TEST_FILE}.test.predictions
 
 # hyperparameter optimization
 docker run -p 27017:27017 --name hyperopt-mongo -d mongo
 
-python src/models/hyperopt_vw.py \
-    --train_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/processed/train.medium.vw.00 \
-    --test_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/processed/test.medium.vw.00 \
-    --vw_args="--bit_precision 25 --ftrl --link logistic --hash all -q :: --holdout_off" \
+python src/models/hyper_vw.py \
+    --train_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/interim/train_2017-11-07_0400.vw \
+    --validation_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/interim/train_2017-11-08_0400.validate.vw \
+    --test_data=/root/alex/kaggle-talkingdata-adtracking-fraud-detection/data/interim/train_2017-11-08_0400.test.vw \
+    --vw_args="--bit_precision 29 --ftrl --link logistic --loss_function logistic --hash all -q ::" \
     --outer_loss_function='roc-auc' \
-    --mongo=mongo://localhost:27017/exp6/jobs \
-    --max_evals=1000
+    --trials_output="trials.json" \
+    --mongo=mongo://localhost:27017/train_2017-11-07_0400/jobs \
+    --max_evals=200
 
-run-hyperopt-mongo-workers.sh 15 localhost:27017/exp5
+run-hyperopt-mongo-workers.sh 15 localhost:27017/train_2017-11-07_0400
 
 # submission
 echo "click_id,is_attributed" > models/predictions/submission.csv

@@ -17,3 +17,4 @@ seaborn
 networkx==1.11
 git+https://github.com/alexandrnikitin/hyperopt_vw.git#egg=hyperopt_vw
 featuretools
+dask
