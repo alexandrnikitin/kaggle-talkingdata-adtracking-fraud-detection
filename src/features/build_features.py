@@ -21,13 +21,13 @@ dtypes = {
     'channel': 'uint16',
     'is_attributed': 'uint8'
 }
-to_read = ['app', 'device', 'os', 'channel', 'click_time', 'is_attributed']
+to_read = ['ip', 'app', 'device', 'os', 'channel', 'click_time', 'is_attributed']
 to_parse = ['click_time']
 
 
-def create_entityset(filename):
+def create_entityset(filename, target_entity):
     df = pd.read_csv(filename, usecols=to_read, dtype=dtypes, parse_dates=to_parse)
-    df['id'] = range(len(df))
+    df['id'] = df.index
 
     es = ft.EntitySet(id='clicks')
     es = es.entity_from_dataframe(
@@ -44,11 +44,7 @@ def create_entityset(filename):
             'is_attributed': ft.variable_types.Boolean,
         }
     )
-
-    es = es.normalize_entity(base_entity_id='clicks', new_entity_id='app', index='app', make_time_index=False)
-    es = es.normalize_entity(base_entity_id='clicks', new_entity_id='device', index='device', make_time_index=False)
-    es = es.normalize_entity(base_entity_id='clicks', new_entity_id='os', index='os', make_time_index=False)
-    es = es.normalize_entity(base_entity_id='clicks', new_entity_id='channel', index='channel', make_time_index=False)
+    es = es.normalize_entity(base_entity_id='clicks', new_entity_id=target_entity, index=target_entity, make_time_index=False)
     es.add_last_time_indexes()
     return es
 
@@ -82,9 +78,8 @@ def create_features(filename, entity_sets, target_entity, cutoff_time, training_
     output_file = os.path.dirname(filename) + '/features/' + f"{name}_{target_entity}_{tw_suffix}_features{ext}"
     feature_matrix.to_csv(output_file)
 
-    del feature_matrix
-    del feature_matrices
-    del b
+    del feature_matrix, feature_matrices, b
+    gc.collect()
 
 
 def main():
@@ -94,27 +89,25 @@ def main():
     pbar = ProgressBar()
     pbar.register()
 
-    target_entities = ['app', 'device', 'os', 'channel']
+    target_entities = ['ip', 'app', 'device', 'os', 'channel']
     filenames_train = sorted(glob('../data/interim/train_2017-11-*00.csv'))
-    training_windows = ['1 hours', '1 day']
+    training_windows = ['1 hours', '3 hours', '1 day']
 
     for target_entity in target_entities:
         filenames = glob(f"../data/interim/partitioned/{target_entity}/train_*.csv")
         b = bag.from_sequence(filenames)
-        entity_sets = b.map(create_entityset).compute()
+        entity_sets = b.map(create_entityset, target_entity).compute()
         gc.collect()
 
         for filename in filenames_train:
-            print(f"Processing: {filename}")
+            logger.info(f"Processing: {filename}")
             df = pd.read_csv(filename, usecols=['click_time'], parse_dates=to_parse)
             cutoff_time = df['click_time'].min()
             del df
             for training_window in training_windows:
                 create_features(filename, entity_sets, target_entity=target_entity, cutoff_time=cutoff_time, training_window=ft.Timedelta(training_window))
-                gc.collect()
 
-        del entity_sets
-        del b
+        del entity_sets, b
         gc.collect()
 
     logger.info('finished')

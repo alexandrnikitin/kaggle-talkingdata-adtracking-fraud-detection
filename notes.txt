@@ -1,0 +1,60 @@
+features:
+data/interim/train_2017-11-07_0300.csv
+train:
+data/interim/train_2017-11-07_0400.csv
+validation:
+test:
+data/interim/train_2017-11-08_0400.csv
+
+train
+2017-11-08_0000
+2017-11-08_0100
+2017-11-08_0200
+2017-11-08_0300
+2017-11-08_0400
+
+test:
+2017-11-09_0400
+
+lb:
+2017-11-10_0400
+2017-11-10_0500
+2017-11-10_0600
+
+export TEST_DIR=data/interim/combined/
+export VW_TEST_FILE=train_2017-11-08_0400_features
+head -n $[ $(wc -l ${TEST_DIR}${VW_TEST_FILE}.vw|cut -d" " -f1) * 40 / 100 ] ${TEST_DIR}${VW_TEST_FILE}.vw > ${TEST_DIR}${VW_TEST_FILE}.validate.vw
+tail -n +$[ ($(wc -l ${TEST_DIR}${VW_TEST_FILE}.vw|cut -d" " -f1) * 40 / 100) + 1 ] ${TEST_DIR}${VW_TEST_FILE}.vw > ${TEST_DIR}${VW_TEST_FILE}.test.vw
+
+awk '{ if ($1 == "-1") print "0"; else print $1;}' ${TEST_DIR}${VW_TEST_FILE}.validate.vw > ${TEST_DIR}${VW_TEST_FILE}.validate.labels
+awk '{ if ($1 == "-1") print "0"; else print $1;}' ${TEST_DIR}${VW_TEST_FILE}.test.vw > ${TEST_DIR}${VW_TEST_FILE}.test.labels
+
+
+export TRAIN_DIR=data/interim/combined/
+export VW_TRAIN_FILE=train_2017-11-08_0400_combined
+vw --data ${TRAIN_DIR}${VW_TRAIN_FILE}.vw \
+    -f models/${VW_TRAIN_FILE}.model \
+    -b 29 \
+    --ftrl \
+    --link=logistic \
+    --loss_function=logistic \
+    --hash all \
+    --passes 20 \
+    --cache --kill_cache \
+	--classweight -1:0.75 --classweight 1:50 --learning_rate 0.15 \
+	--l1 5e-07 --l2 6e-08 \
+	-q ::
+
+
+# audit
+vw --data data/interim/${VW_TRAIN_FILE}.vw \
+    -i models/${VW_TRAIN_FILE}.model \
+    --audit_regressor models/${VW_TRAIN_FILE}.model.audit
+	
+vw --data ${TEST_DIR}${VW_TEST_FILE}.test.vw \
+    -i models/${VW_TRAIN_FILE}.model \
+    --testonly \
+    -p models/${VW_TEST_FILE}.test.predictions \
+    --loss_function=logistic
+
+./libs/perf.src/perf -all -files ${TEST_DIR}${VW_TEST_FILE}.test.labels models/${VW_TEST_FILE}.test.predictions
