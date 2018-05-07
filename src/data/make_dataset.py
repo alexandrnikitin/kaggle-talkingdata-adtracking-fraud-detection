@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 import os
+
 import click
-import logging
 import csv
+import logging
+
+from glob import glob
 from dotenv import find_dotenv, load_dotenv
 
 if __name__ == '__main__':
@@ -12,16 +15,17 @@ else:
 
 
 @click.command()
-@click.argument('input_filepath', type=click.Path(exists=True))
-@click.argument('output_filepath', type=click.Path())
-def main(input_filepath, output_filepath):
-    """ Runs data processing scripts to turn raw data from (../raw) into
-        cleaned data ready to be analyzed (saved in ../processed).
-    """
+@click.option('--input_filemask', '-i', type=click.STRING)
+def main(input_filemask):
     logger = logging.getLogger(__name__)
     logger.info('making final data set from raw data')
 
-    convert(input_filepath, output_filepath)
+    for input_filepath in sorted(glob(input_filemask)):
+        name, ext = os.path.splitext(input_filepath)
+        output_filepath = f"{name}.vw"
+        logger.info(f"Processing {input_filepath}")
+        logger.info(f"Writing {output_filepath}")
+        convert(input_filepath, output_filepath)
 
     logger.info('finished')
 

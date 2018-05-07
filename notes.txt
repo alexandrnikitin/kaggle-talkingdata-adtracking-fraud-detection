@@ -1,0 +1,243 @@
+features:
+data/interim/train_2017-11-07_0300.csv
+train:
+data/interim/train_2017-11-07_0400.csv
+validation:
+test:
+data/interim/train_2017-11-08_0400.csv
+
+features is_attributed:
+2017-11-06_1700
+...
+2017-11-07_1600
+
+features others:
+2017-11-06_1700
+...
+2017-11-07_1600
+
+train:
+2017-11-07_1700
+...
+2017-11-08_1600
+
+test:
+2017-11-09_0400
+2017-11-09_0500
+2017-11-09_0600
+
+lb:
+2017-11-10_0400
+2017-11-10_0500
+2017-11-10_0600
+
+export TEST_DIR=data/interim/vw/
+export VW_TEST_FILE=validate_2017-11-09_0400_09_0600
+head -n $[ $(wc -l ${TEST_DIR}${VW_TEST_FILE}.vw|cut -d" " -f1) * 40 / 100 ] ${TEST_DIR}${VW_TEST_FILE}.vw > ${TEST_DIR}${VW_TEST_FILE}.validate.vw
+tail -n +$[ ($(wc -l ${TEST_DIR}${VW_TEST_FILE}.vw|cut -d" " -f1) * 40 / 100) + 1 ] ${TEST_DIR}${VW_TEST_FILE}.vw > ${TEST_DIR}${VW_TEST_FILE}.test.vw
+
+awk '{ if ($1 == "-1") print "0"; else print $1;}' ${TEST_DIR}${VW_TEST_FILE}.validate.vw > ${TEST_DIR}${VW_TEST_FILE}.validate.labels
+awk '{ if ($1 == "-1") print "0"; else print $1;}' ${TEST_DIR}${VW_TEST_FILE}.test.vw > ${TEST_DIR}${VW_TEST_FILE}.test.labels
+
+
+export TRAIN_DIR=data/interim/vw/
+export VW_TRAIN_FILE=train_2017-11-07_1700_08_1600
+vw --data ${TRAIN_DIR}${VW_TRAIN_FILE}.vw \
+    -f models/${VW_TRAIN_FILE}.model \
+    -b 29 \
+    --ftrl \
+    --link=logistic \
+    --loss_function=logistic \
+    --hash all \
+    --passes 20 \
+    --cache --kill_cache \
+	--classweight -1:0.75 --classweight 1:50 --learning_rate 0.5 \
+	--l1 5e-07 --l2 6e-08 \
+	-q ::
+
+
+# audit
+vw --data ${TRAIN_DIR}${VW_TRAIN_FILE}.vw \
+    -i models/${VW_TRAIN_FILE}.model \
+    --audit_regressor models/${VW_TRAIN_FILE}.model.audit
+	
+vw --data ${TEST_DIR}${VW_TEST_FILE}.test.vw \
+    -i models/${VW_TRAIN_FILE}.model \
+    --testonly \
+    -p models/${VW_TEST_FILE}.test.predictions \
+    --loss_function=logistic
+
+./libs/perf.src/perf -all -files ${TEST_DIR}${VW_TEST_FILE}.test.labels models/${VW_TEST_FILE}.test.predictions
+
+
+
+
+
+
+{'alpha': 3.0, 'colsample_bytree': 0.6000000000000001, 'eta': 0.2, 'gamma': 2.0, 'lambda': 1.2000000000000002, 'max_depth': 9, 'min_child_weight': 21.0, 'subsample': 0.6000000000000001}
+ 
+ 
+Training until validation scores don't improve for 30 rounds.
+[10]	train's auc: 0.97361	valid's auc: 0.962877
+[20]	train's auc: 0.974093	valid's auc: 0.963468
+[30]	train's auc: 0.974344	valid's auc: 0.963533
+[40]	train's auc: 0.974737	valid's auc: 0.963778
+[50]	train's auc: 0.974872	valid's auc: 0.963824
+[60]	train's auc: 0.975036	valid's auc: 0.96392
+[70]	train's auc: 0.975243	valid's auc: 0.96406
+[80]	train's auc: 0.97539	valid's auc: 0.964103
+[90]	train's auc: 0.975469	valid's auc: 0.964144
+[100]	train's auc: 0.975539	valid's auc: 0.964253
+
+
+
+'PERCENT_TRUE(clicks.is_attributed)_app_7days',
+'PERCENT_TRUE(clicks.is_attributed)_app_channel_7days',
+'PERCENT_TRUE(clicks.is_attributed)_app_os_7days',
+'PERCENT_TRUE(clicks.is_attributed)_app_device_7days',
+'STD(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_ip_7days',
+'PERCENT_TRUE(clicks.is_attributed)_os_channel_7days',
+'PERCENT_TRUE(clicks.is_attributed)_app_hour_7days',
+'PERCENT_TRUE(clicks.is_attributed)_os_hour_7days',
+'SKEW(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_app_device_7days',
+'STD(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_app_7days',
+'PERCENT_TRUE(clicks.is_attributed)_device_hour_7days',
+'PERCENT_TRUE(clicks.is_attributed)_device_channel_7days',
+'STD(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_app_channel_7days',
+'PERCENT_TRUE(clicks.is_attributed)_ip_7days',
+'PERCENT_TRUE(clicks.is_attributed)_channel_hour_7days',
+'SKEW(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_app_channel_7days',
+'PERCENT_TRUE(clicks.is_attributed)_device_os_7days',
+'SKEW(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_device_os_7days',
+'STD(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_device_channel_7days',
+'SKEW(clicks.hour.PERCENT_TRUE(clicks.is_attributed))_ip_7days',
+
+[10]	valid's auc: 0.966189
+[20]	valid's auc: 0.966308
+[30]	valid's auc: 0.968183
+[40]	valid's auc: 0.968538
+[50]	valid's auc: 0.968773
+[60]	valid's auc: 0.969014
+[70]	valid's auc: 0.969111
+[80]	valid's auc: 0.969217
+[90]	valid's auc: 0.969315
+[100]	valid's auc: 0.969369
+[110]	valid's auc: 0.969384
+[120]	valid's auc: 0.969586
+[130]	valid's auc: 0.969698
+[140]	valid's auc: 0.96975
+[150]	valid's auc: 0.969773
+[160]	valid's auc: 0.969788
+[170]	valid's auc: 0.969904
+[180]	valid's auc: 0.969992
+[190]	valid's auc: 0.97009
+[200]	valid's auc: 0.970131
+Did not meet early stopping. Best iteration is:
+[199]	valid's auc: 0.970133
+
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_app_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_app_channel_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_app_device_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_app_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_app_os_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_channel_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_channel_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_device_channel_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_device_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_device_os_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_ip_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_os_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_os_channel_7days',
+'AVG_TIME_BETWEEN(clicks.click_time WHERE is_attributed = True)_os_hour_7days',
+
+[10]	valid's auc: 0.957422
+[20]	valid's auc: 0.957331
+[30]	valid's auc: 0.958146
+[40]	valid's auc: 0.959318
+[50]	valid's auc: 0.959439
+[60]	valid's auc: 0.959775
+[70]	valid's auc: 0.960475
+[80]	valid's auc: 0.960508
+[90]	valid's auc: 0.960406
+[100]	valid's auc: 0.960404
+[110]	valid's auc: 0.960398
+[80]	valid's auc: 0.960508
+
+
+'COUNT(clicks)_ip_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_app_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_ip_7days',
+'COUNT(clicks)_device_os_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_app_channel_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_device_os_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_channel_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_app_os_7days',
+'COUNT(clicks)_app_os_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_channel_7days',
+'COUNT(clicks)_device_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_device_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_os_hour_7days',
+'COUNT(clicks)_app_hour_7days',
+'AVG_TIME_BETWEEN(clicks.click_time)_app_device_7days',
+'COUNT(clicks)_app_channel_7days'
+
+[10]	valid's auc: 0.961554
+[20]	valid's auc: 0.963073
+[30]	valid's auc: 0.963417
+[40]	valid's auc: 0.963823
+[50]	valid's auc: 0.964634
+[60]	valid's auc: 0.964801
+[70]	valid's auc: 0.964905
+[80]	valid's auc: 0.965004
+[90]	valid's auc: 0.964984
+[100]	valid's auc: 0.965162
+[110]	valid's auc: 0.965162
+[120]	valid's auc: 0.965213
+[130]	valid's auc: 0.96524
+[140]	valid's auc: 0.965438
+[150]	valid's auc: 0.96553
+[160]	valid's auc: 0.965528
+[170]	valid's auc: 0.965612
+[180]	valid's auc: 0.965716
+[190]	valid's auc: 0.965829
+[200]	valid's auc: 0.965996
+Did not meet early stopping. Best iteration is:
+[200]	valid's auc: 0.965996
+
+
+'NUM_UNIQUE(clicks.channel)_ip_7days',
+'NUM_UNIQUE(clicks.os)_ip_7days',
+'NUM_UNIQUE(clicks.os)_app_7days',
+'NUM_UNIQUE(clicks.ip)_device_os_7days',
+'NUM_UNIQUE(clicks.device)_ip_7days',
+'NUM_UNIQUE(clicks.ip)_app_channel_7days',
+'NUM_UNIQUE(clicks.ip)_app_os_7days',
+'NUM_UNIQUE(clicks.ip)_os_hour_7days',
+'NUM_UNIQUE(clicks.ip)_app_7days',
+'NUM_UNIQUE(clicks.ip)_os_channel_7days',
+'NUM_UNIQUE(clicks.channel)_app_os_7days',
+'NUM_UNIQUE(clicks.ip)_app_hour_7days',
+
+[10]	valid's auc: 0.961623
+[20]	valid's auc: 0.963345
+[30]	valid's auc: 0.96367
+[40]	valid's auc: 0.964139
+[50]	valid's auc: 0.964908
+[60]	valid's auc: 0.964955
+[70]	valid's auc: 0.965075
+[80]	valid's auc: 0.965011
+[90]	valid's auc: 0.965133
+[100]	valid's auc: 0.965252
+[110]	valid's auc: 0.965292
+[120]	valid's auc: 0.965331
+[130]	valid's auc: 0.965318
+[140]	valid's auc: 0.965346
+[150]	valid's auc: 0.965448
+[160]	valid's auc: 0.965471
+[170]	valid's auc: 0.965549
+[180]	valid's auc: 0.96568
+[190]	valid's auc: 0.965857
+[200]	valid's auc: 0.965999
+Did not meet early stopping. Best iteration is:
+[199]	valid's auc: 0.966
