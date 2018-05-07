@@ -23,15 +23,16 @@ from hyperopt_vw import Objective, search
               default='logistic')
 @click.option('--mongo', type=click.STRING, default=None)
 @click.option('--timeout', type=click.INT, default=3600)
-def main(train_data, validation_data, test_data, trials_output, vw_args, max_evals, outer_loss_function, mongo,
-         timeout):
+def main(train_data, validation_data, test_data, trials_output, vw_args, max_evals, outer_loss_function, mongo, timeout):
     space = {
-        # '--ftrl_alpha': hp.loguniform(_name_func('ftrl_alpha'), log(5e-5), log(8e-1)),
-        # '--ftrl_beta': hp.uniform(_name_func('ftrl_beta'), log(0.01), log(1.)),
-        '--passes': hp.quniform('passes', 1, 5, 1),
-        '--learning_rate': hp.loguniform('learning_rate', log(0.01), log(10)),
-        '--classweight 1:': hp.loguniform('classweight_pos', log(1), log(1000)),
-        '--classweight -1:': hp.loguniform('classweight_neg', log(0.001), log(1)),
+        '--ftrl_alpha': hp.loguniform('ftrl_alpha', log(1e-5), log(1e-1)),
+        '--ftrl_beta': hp.uniform('ftrl_beta', 0.01, 1.),
+        '--l1': hp.loguniform('l1', log(1e-8), log(1e-1)),
+        '--l2': hp.loguniform('l2', log(1e-8), log(1e-1)),
+        # '--passes': hp.quniform('passes', 1, 5, 1),
+        # '--learning_rate': hp.loguniform('learning_rate', log(0.01), log(10)),
+        # '--classweight 1:': hp.loguniform('classweight_pos', log(1), log(1000)),
+        # '--classweight -1:': hp.loguniform('classweight_neg', log(0.001), log(1)),
     }
 
     trials = MongoTrials(mongo) if mongo else Trials()
